@@ -1,0 +1,15 @@
+function add
+    out z is i32;
+    in x is i32;
+    in y is i32;
+do
+    z = x + y;
+end
+
+function main
+    var a is i32;
+do
+    add(a, 1, 2);
+
+    debugInt(a);
+end
