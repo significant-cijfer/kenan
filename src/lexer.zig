@@ -3,14 +3,25 @@ const std = @import("std");
 pub const Tokens = struct {
     text: [:0]const u8,
     list: std.MultiArrayList(Token),
+
+    pub fn get(self: Tokens, index: u32) Token {
+        return self.list.get(index);
+    }
+
+    pub fn slice(self: Tokens, index: u32) []const u8 {
+        const tok = self.get(index);
+        _, const end = token(self.text, tok.index);
+
+        return self.text[tok.index..end];
+    }
 };
 
-const Token = struct {
+pub const Token = struct {
     unit: Unit,
     index: u32,
 };
 
-const Unit = enum {
+pub const Unit = enum {
     last,
     integer,
     identifier,
@@ -34,6 +45,7 @@ const Unit = enum {
 
 const State = enum {
     initial,
+    comment,
     integer,
     identifier,
 };
@@ -94,7 +106,11 @@ fn token(text: [:0]const u8, index: u32) struct { Token, u32 } {
             },
             '/' => {
                 idx += 1;
-                break :state .@"/";
+
+                if (text[idx] == '/')
+                    continue :state .comment
+                else
+                    break :state .@"/";
             },
             '=' => {
                 idx += 1;
@@ -118,6 +134,17 @@ fn token(text: [:0]const u8, index: u32) struct { Token, u32 } {
             },
             else => |c| {
                 std.debug.panic("c: '{c}'", .{c});
+            },
+        },
+        .comment => switch (text[idx]) {
+            '\n' => {
+                start += 1;
+                continue :state .initial;
+            },
+            else => {
+                start += 1;
+                idx += 1;
+                continue :state .comment;
             },
         },
         .integer => switch (text[idx]) {

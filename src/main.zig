@@ -1,5 +1,5 @@
 const std = @import("std");
-const tataC = @import("tataC");
+const root = @import("tataC");
 
 pub fn main(init: std.process.Init) !void {
     const gpa = init.arena.allocator();
@@ -10,6 +10,7 @@ pub fn main(init: std.process.Init) !void {
 
     const text = try std.Io.Dir.cwd().readFileAllocOptions(init.io, args[1], gpa, .unlimited, .of(u8), 0);
 
-    const tokens = try tataC.lexer.lex(gpa, text);
-    _ = tokens;
+    const tokens = try root.lexer.lex(gpa, text);
+    const program = try root.parser.parse(gpa, tokens);
+    _ = program;
 }
