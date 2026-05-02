@@ -1,8 +1,8 @@
 .{
-    .name = .tataC,
+    .name = .kenan,
     .version = "0.0.0",
-    .fingerprint = 0x8921ab344141759b, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.15.2",
+    .fingerprint = 0xb09d46e3646462b7, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
     },
     .paths = .{
