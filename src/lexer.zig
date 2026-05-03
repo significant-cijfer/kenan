@@ -57,8 +57,6 @@ pub fn lex(allocator: std.mem.Allocator, text: [:0]const u8) !Tokens {
     while (true) {
         const tok, index = token(text, index);
 
-        std.debug.print("tok: .index = {}, .unit = {}\n", .{tok.index, tok.unit});
-
         try list.append(allocator, tok);
 
         if (tok.unit == .last)

@@ -1,22 +1,20 @@
 const std = @import("std");
 const root = @import("root.zig");
 
-const Program = struct {
+pub const Program = struct {
     functions: std.MultiArrayList(Function),
 };
 
 const Function = struct {
     name: Expr.Token,
-    varbs: std.StringArrayHashMapUnmanaged(root.Type),
-    outs: std.StringArrayHashMapUnmanaged(root.Type),
-    ins: std.StringArrayHashMapUnmanaged(root.Type),
-    body: std.MultiArrayList(Expr),
+    decls: std.MultiArrayList(Declaration),
+    exprs: std.MultiArrayList(Expr),
 };
 
 const Declaration = struct {
     kind: Kind,
     name: Expr.Token,
-    typx: Expr.Token, //TODO(urgent), store actual type here
+    typx: Expr,
 
     const Kind = enum {
         varb,
@@ -81,27 +79,27 @@ const Op = enum {
 pub fn parse(allocator: std.mem.Allocator, tokens: root.lexer.Tokens) !Program {
     var idx: u32 = 0;
 
+    var functions: std.MultiArrayList(Function) = .empty;
+
     while (!check(tokens, idx, .last)) {
         idx, const function = try parseFunction(allocator, tokens, idx);
 
+        try functions.append(allocator, function);
+
         std.debug.print("fn: {s}\n", .{tokens.slice(function.name)});
-        std.debug.print("fn.varbs: {}\n", .{function.varbs});
-        std.debug.print("fn.outs: {}\n", .{function.outs});
-        std.debug.print("fn.ins: {}\n", .{function.ins});
-        std.debug.print("fn.body: {}\n", .{function.body});
+        std.debug.print("fn.decls: {}\n", .{function.decls});
+        std.debug.print("fn.exprs: {}\n", .{function.exprs});
     }
 
     return .{
-        .functions = .empty
+        .functions = functions,
     };
 }
 
 fn parseFunction(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, index: u32) !struct { u32, Function } {
     var idx = index;
 
-    var varbs: std.StringArrayHashMapUnmanaged(root.Type) = .empty;
-    var outs: std.StringArrayHashMapUnmanaged(root.Type) = .empty;
-    var ins: std.StringArrayHashMapUnmanaged(root.Type) = .empty;
+    var decls: std.MultiArrayList(Declaration) = .empty;
     var exprs: std.MultiArrayList(Expr) = .empty;
 
     idx = try expect(tokens, idx, .@"function");
@@ -109,16 +107,10 @@ fn parseFunction(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, index:
     idx = try expect(tokens, idx, .identifier);
 
     while (!check(tokens, idx, .@"do")) {
-        idx, const decl = try parseDeclaration(tokens, idx);
+        idx, const decl = try parseDeclaration(allocator, tokens, idx);
         idx = try expect(tokens, idx, .@";");
 
-        const list = switch (decl.kind) {
-            .varb => &varbs,
-            .out => &outs,
-            .in => &ins,
-        };
-
-        try list.put(allocator, tokens.slice(decl.name), .dev_todo);
+        try decls.append(allocator, decl);
     }
 
     idx = skip(idx);
@@ -136,15 +128,13 @@ fn parseFunction(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, index:
         idx,
         .{
             .name = name,
-            .varbs = varbs,
-            .outs = outs,
-            .ins = ins,
-            .body = exprs,
+            .decls = decls,
+            .exprs = exprs,
         },
     }; 
 }
 
-fn parseDeclaration(tokens: root.lexer.Tokens, index: u32) !struct { u32, Declaration } {
+fn parseDeclaration(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, index: u32) !struct { u32, Declaration } {
     var idx = index;
 
     const kind: Declaration.Kind = switch (peek(tokens, idx).unit) {
@@ -159,8 +149,8 @@ fn parseDeclaration(tokens: root.lexer.Tokens, index: u32) !struct { u32, Declar
     const name = idx;
     idx = try expect(tokens, idx, .identifier);
     idx = try expect(tokens, idx, .@"is");
-    const typx = idx;
-    idx = try expect(tokens, idx, .identifier); //TODO(urgent), parse actual type here
+
+    idx, const typx = try parseExpr(allocator, tokens, idx);
 
     return .{
         idx,
