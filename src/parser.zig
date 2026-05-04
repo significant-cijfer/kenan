@@ -5,13 +5,13 @@ pub const Program = struct {
     functions: std.MultiArrayList(Function),
 };
 
-const Function = struct {
+pub const Function = struct {
     name: Expr.Token,
     decls: std.MultiArrayList(Declaration),
     exprs: std.MultiArrayList(Expr),
 };
 
-const Declaration = struct {
+pub const Declaration = struct {
     kind: Kind,
     name: Expr.Token,
     typx: Expr,
@@ -23,7 +23,7 @@ const Declaration = struct {
     };
 };
 
-const Expr = union(enum) {
+pub const Expr = union(enum) {
     integer: Token,
     identifier: Token,
     add: Binary,
@@ -171,10 +171,10 @@ fn parseExprDo(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, index: u
 
     var lhs: Expr = switch (first.unit) {
         .integer => .{
-            .integer = first.index,
+            .integer = index,
         },
         .identifier => .{
-            .identifier = first.index,
+            .identifier = index,
         },
         else => |u| {
             std.debug.panic("huh? = {}", .{u});
@@ -206,10 +206,14 @@ fn parseExprDo(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, index: u
 
                 idx = skip(idx);
 
+                //NOTE, lhs has to be boxed outside of struct literal, due to some language quirk
+                const blhs = try lhs.box(allocator);
+                const brhs = try args.toOwnedSlice(allocator);
+
                 lhs = .{
                     .call = .{
-                        .lhs = try lhs.box(allocator),
-                        .rhs = try args.toOwnedSlice(allocator),
+                        .lhs = blhs,
+                        .rhs = brhs,
                     },
                 };
 

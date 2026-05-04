@@ -13,5 +13,5 @@ pub fn main(init: std.process.Init) !void {
     const tokens = try root.lexer.lex(gpa, text);
     const program = try root.parser.parse(gpa, tokens);
 
-    try root.scanner.scan(gpa, program);
+    try root.scanner.scan(gpa, tokens, program);
 }

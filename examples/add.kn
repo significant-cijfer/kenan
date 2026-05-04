@@ -11,5 +11,5 @@ function main
 do
     add(a, 1, 2);
 
-    debugInt(a);
+    //debugInt(a);
 end
