@@ -73,8 +73,7 @@ fn token(text: [:0]const u8, index: u32) struct { Token, u32 } {
     var start = index;
     var idx = index;
 
-    const unit:
-        Unit = state: switch (State.initial) {
+    const unit: Unit = state: switch (State.initial) {
         .initial => switch (text[idx]) {
             0 => {
                 break :state .last;

@@ -27,7 +27,7 @@ const Table = struct {
 };
 
 const Symbol = struct {
-    typx: root.Type,
+    typx: root.typx.Type,
 };
 
 pub fn scan(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, program: root.parser.Program) !void {
@@ -47,8 +47,6 @@ pub fn scan(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, program: ro
     try context.tables.put(allocator, "<god>", god);
 
     try scanProgram(allocator, tokens, &god, program);
-
-    @panic("passed scan");
 }
 
 fn scanProgram(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: *Table, program: root.parser.Program) !void {
@@ -65,31 +63,64 @@ fn scanFunction(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: 
 
     var chair = table.child();
 
-    for (0..decls.len) |i|
-        try scanDecl(allocator, tokens, &chair, decls.get(i));
+    var t_decls: std.StringArrayHashMapUnmanaged(root.typx.Declaration) = .empty;
 
-    for (0..exprs.len) |i|
-        _ = try scanExpr(allocator, tokens, &chair, exprs.get(i));
+    for (0..decls.len) |i| {
+        const decl = decls.get(i);
 
-    //TODO
-    try table.put(allocator, name, .{
-        .typx = .dev_todo
-    });
+        const t_decl = try scanDecl(allocator, tokens, &chair, decl);
+        const t_name = tokens.slice(decl.name);
+
+        try t_decls.put(allocator, t_name, t_decl);
+    }
+
+    for (0..exprs.len) |i| {
+        const expr = exprs.get(i);
+
+        const typx = try scanExpr(allocator, tokens, &chair, expr);
+
+        if (typx != .novalue)
+            return error.NonVoidStatement;
+
+        //TODO, add noreturn case here
+    }
+
+    try table.put(allocator, name, .{ .typx = .{
+        .function = .{ .decls = t_decls },
+    }});
 }
 
-fn scanDecl(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: *Table, decl: root.parser.Declaration) !void {
+fn scanDecl(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: *Table, decl: root.parser.Declaration) !root.typx.Declaration {
     const name = tokens.slice(decl.name);
     const typx = try scanExpr(allocator, tokens, table, decl.typx);
 
     try table.put(allocator, name, .{ .typx = typx });
+
+    return .{
+        .kind = decl.kind,
+        .typx = typx,
+    };
 }
 
-fn scanExpr(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: *Table, expr: root.parser.Expr) !root.Type {
+fn scanExpr(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: *Table, expr: root.parser.Expr) !root.typx.Type {
     switch (expr) {
+        .integer => |t| {
+            const string = tokens.slice(t);
+
+            var number = try std.math.big.int.Managed.init(allocator);
+            try number.setString(10, string);
+            defer number.deinit();
+
+            const signed = !number.isPositive();
+            const bits = number.bitCountTwosComp();
+
+            return .{ .integer = .{
+                .signed = signed,
+                .bits = @intCast(bits),
+            }};
+        },
         .identifier => |t| {
             const name = tokens.slice(t);
-
-            std.debug.print("name: {s}\n", .{name});
             const symbol = try table.get(name);
 
             return symbol.typx;
@@ -97,9 +128,6 @@ fn scanExpr(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: *Tab
         .add => |b| {
             const lhs = try scanExpr(allocator, tokens, table, b.lhs.*);
             const rhs = try scanExpr(allocator, tokens, table, b.rhs.*);
-
-            std.debug.print("lhs: {}\n", .{lhs});
-            std.debug.print("rhs: {}\n", .{rhs});
 
             if (!lhs.isNumeric())
                 return error.NonNumericType;
@@ -122,13 +150,21 @@ fn scanExpr(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: *Tab
             return .novalue;
         },
         .call => |v| {
-            std.debug.print("call: v.lhs = {*}\n", .{v.lhs});
-
             const lhs = try scanExpr(allocator, tokens, table, v.lhs.*);
-            _ = lhs;
 
-            std.debug.print("v: {}\n", .{v});
-            @panic("todo, call");
+            if (lhs != .function)
+                return error.NonFunctionCall;
+
+            const decls = lhs.function.decls.values();
+
+            for (v.rhs, decls) |r, decl| {
+                const rhs = try scanExpr(allocator, tokens, table, r);
+
+                if (!decl.typx.coerces(rhs))
+                    return error.IncoercibleType;
+            }
+
+            return .novalue;
         },
         else => std.debug.panic("unhandled expr: {}", .{expr}),
     }

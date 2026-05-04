@@ -16,7 +16,7 @@ pub const Declaration = struct {
     name: Expr.Token,
     typx: Expr,
 
-    const Kind = enum {
+    pub const Kind = enum {
         varb,
         out,
         in,
