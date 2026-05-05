@@ -12,7 +12,9 @@ pub fn main(init: std.process.Init) !void {
 
     const tokens = try root.lexer.lex(gpa, text);
     const program = try root.parser.parse(gpa, tokens);
+
     try root.scanner.scan(gpa, tokens, program);
+    try root.flattener.flatten(gpa, tokens, program);
 
     std.debug.print("capacity:\n", .{});
     std.debug.print("        : {} bytes\n", .{init.arena.queryCapacity()});
