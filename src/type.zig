@@ -26,12 +26,12 @@ pub const Type = union(enum) {
     }
 };
 
-const Integer = struct {
+pub const Integer = struct {
     signed: bool,
     bits: u16,
 };
 
-const Function = struct {
+pub const Function = struct {
     decls: std.StringArrayHashMapUnmanaged(Declaration),
 };
 

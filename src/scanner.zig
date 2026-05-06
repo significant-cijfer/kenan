@@ -63,15 +63,17 @@ fn scanFunction(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: 
 
     var chair = table.child();
 
-    var t_decls: std.StringArrayHashMapUnmanaged(root.typx.Declaration) = .empty;
+    var payload = root.typx.Function{
+        .decls = .empty,
+    };
 
     for (0..decls.len) |i| {
         const decl = decls.get(i);
 
-        const t_decl = try scanDecl(allocator, tokens, &chair, decl);
-        const t_name = tokens.slice(decl.name);
+        const p_decl = try scanDecl(allocator, tokens, &chair, decl);
+        const p_name = tokens.slice(decl.name);
 
-        try t_decls.put(allocator, t_name, t_decl);
+        try payload.decls.put(allocator, p_name, p_decl);
     }
 
     for (0..exprs.len) |i| {
@@ -85,9 +87,7 @@ fn scanFunction(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: 
         //TODO, add noreturn case here
     }
 
-    try table.put(allocator, name, .{ .typx = .{
-        .function = .{ .decls = t_decls },
-    }});
+    try table.put(allocator, name, .{ .typx = .{ .function = payload }});
 }
 
 fn scanDecl(allocator: std.mem.Allocator, tokens: root.lexer.Tokens, table: *Table, decl: root.parser.Declaration) !root.typx.Declaration {
